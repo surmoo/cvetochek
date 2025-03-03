@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Поймай цветочек</title>
+  <style>
+    /* Сброс отступов и установка фонового цвета */
+    * { margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #e0f7fa;
+    }
+    canvas { display: block; }
+    /* Стили для табло */
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-family: Arial, sans-serif;
+      font-size: 24px;
+      color: #333;
+      background: rgba(255,255,255,0.8);
+      padding: 5px 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Элемент для отображения счёта и промахов -->
+  <div id="scoreboard">Счёт: 0 | Промахов: 0</div>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreboard = document.getElementById('scoreboard');
+    
+    // Настройка размеров канваса под окно
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    // Глобальные переменные игры
+    let score = 0;
+    let misses = 0;
+    let gameOver = false;
+    const emojis = [];       // Массив для падающих эмодзи
+    const emojiSize = 50;    // Размер эмодзи в пикселях
+    
+    // Функция для создания нового эмодзи
+    function spawnEmoji() {
+      // С вероятностью 50% эмодзи – это цветочек (🌸), иначе – другой (❄️ или 🍂)
+      const isFlower = Math.random() < 0.5;
+      const emojiChar = isFlower ? '🌸' : (Math.random() < 0.5 ? '❄️' : '🍂');
+      const x = Math.random() * (canvas.width - emojiSize);
+      const y = -emojiSize; // начинаем вне экрана сверху
+      const speed = 2 + Math.random() * 3;
+      emojis.push({ x, y, speed, isFlower, char: emojiChar });
+    }
+    
+    // Обработчик кликов по канвасу
+    canvas.addEventListener('click', function(e) {
+      if (gameOver) return; // если игра окончена, клики игнорируем
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      let hitEmoji = false;
+      
+      // Проверяем, попал ли пользователь по какому-либо эмодзи
+      for (let i = emojis.length - 1; i >= 0; i--) {
+        const emoji = emojis[i];
+        if (
+          clickX >= emoji.x &&
+          clickX <= emoji.x + emojiSize &&
+          clickY >= emoji.y &&
+          clickY <= emoji.y + emojiSize
+        ) {
+          hitEmoji = true;
+          if (emoji.isFlower) {
+            score++;
+          } else {
+            misses++;
+          }
+          emojis.splice(i, 1); // удаляем пойманный эмодзи
+          break;
+        }
+      }
+      if (!hitEmoji) {
+        // Если клик не попал ни в один эмодзи – засчитываем промах
+        misses++;
+      }
+      updateScoreboard();
+      checkGameOver();
+    });
+    
+    // Функция обновления табло
+    function updateScoreboard() {
+      scoreboard.innerText = `Счёт: ${score} | Промахов: ${misses}`;
+    }
+    
+    // Функция проверки завершения игры
+    function checkGameOver() {
+      if (misses >= 3) {
+        gameOver = true;
+        setTimeout(() => {
+          alert("Игра окончена! Ваш счёт: " + score);
+          resetGame();
+        }, 10);
+      }
+    }
+    
+    // Сброс игры
+    function resetGame() {
+      score = 0;
+      misses = 0;
+      emojis.length = 0;
+      gameOver = false;
+      updateScoreboard();
+    }
+    
+    // Основной цикл игры
+    function update() {
+      if (!gameOver) {
+        // С вероятностью 2% за кадр создаём новое эмодзи
+        if (Math.random() < 0.02) spawnEmoji();
+      }
+      
+      // Очищаем канвас
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = emojiSize + "px serif";
+      
+      // Обновляем положение и рисуем эмодзи
+      for (let i = emojis.length - 1; i >= 0; i--) {
+        const emoji = emojis[i];
+        emoji.y += emoji.speed;
+        ctx.fillText(emoji.char, emoji.x, emoji.y + emojiSize);
+        // Если эмодзи вышел за нижнюю границу – удаляем его и засчитываем промах
+        if (emoji.y > canvas.height) {
+          emojis.splice(i, 1);
+          misses++;
+          updateScoreboard();
+          checkGameOver();
+        }
+      }
+      requestAnimationFrame(update);
+    }
+    
+    update();
+  </script>
+</body>
+</html>
